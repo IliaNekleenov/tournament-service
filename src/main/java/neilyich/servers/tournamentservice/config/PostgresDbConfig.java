@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.JpaTransactionManager;
@@ -14,6 +15,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import javax.sql.DataSource;
 import java.util.HashMap;
 
+@Profile("default")
 @Configuration
 @EnableJpaRepositories(
         basePackages = "neilyich.servers.tournamentservice.repositories",
@@ -29,12 +31,14 @@ public class PostgresDbConfig {
     }
 
     @Bean
+    @Profile("default")
     @ConfigurationProperties(prefix = "spring.postgres-datasource")
     public DataSource postgresDataSource() {
         return DataSourceBuilder.create().build();
     }
 
     @Bean
+    @Profile("default")
     public LocalContainerEntityManagerFactoryBean postgresEntityManager() {
         LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
         em.setDataSource(postgresDataSource());
@@ -49,6 +53,7 @@ public class PostgresDbConfig {
     }
 
     @Bean
+    @Profile("default")
     public PlatformTransactionManager postgresTransactionManager() {
         JpaTransactionManager transactionManager = new JpaTransactionManager();
         transactionManager.setEntityManagerFactory(postgresEntityManager().getObject());

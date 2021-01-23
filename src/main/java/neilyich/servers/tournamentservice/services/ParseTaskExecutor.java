@@ -18,7 +18,7 @@ public class ParseTaskExecutor {
     private final List<TournamentParser> parsers;
     private static final String separator = "------------------------------------------------";
 
-    //@Scheduled(fixedRate = 1000 * 60 * 60)
+    @Scheduled(fixedRate = 1000 * 60 * 60)
     public void parseAndSaveTournaments() throws IOException {
         log.info("parsing tournaments...");
         List<ParseTournamentsResult> parseTournamentsResults = new ArrayList<>(parsers.size());
