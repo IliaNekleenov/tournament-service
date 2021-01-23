@@ -39,7 +39,8 @@ public class PostgresDbConfig {
     @Profile("default")
     @ConfigurationProperties(prefix = "spring.postgres-datasource")
     public DataSource postgresDataSource() {
-        return DataSourceBuilder.create().build();
+        return DataSourceBuilder.create()
+                .url(env.getProperty("jdbc-url")).build();
     }
 
     @Bean
@@ -51,8 +52,8 @@ public class PostgresDbConfig {
         HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
         em.setJpaVendorAdapter(vendorAdapter);
         HashMap<String, Object> properties = new HashMap<>();
-        properties.put("hibernate.hbm2ddl.auto", env.getProperty("hibernate.hbm2ddl.auto"));
-        properties.put("hibernate.dialect", env.getProperty("hibernate.dialect.postgres"));
+        properties.put("hibernate.hbm2ddl.auto", "validate");
+        properties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQL10Dialect");
         em.setJpaPropertyMap(properties);
         return em;
     }
