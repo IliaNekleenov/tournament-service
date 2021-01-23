@@ -5,7 +5,7 @@ import neilyich.servers.tournamentservice.exceptions.ParseException;
 import neilyich.servers.tournamentservice.exceptions.TournamentAlreadyParsedException;
 import neilyich.servers.tournamentservice.model.*;
 import neilyich.servers.tournamentservice.repositories.TournamentsRepository;
-import org.jsoup.Jsoup;
+import neilyich.servers.tournamentservice.services.DocumentDownloader;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -27,19 +27,21 @@ public class LlbSuParser implements TournamentParser {
     private static final String nextTournamentsTarget = "/tournaments/next";
 
     private final TournamentsRepository tournamentsRepository;
+    private final DocumentDownloader documentDownloader;
 
     private ParseTournamentsResult parseTournamentsResult;
 
     @Autowired
-    public LlbSuParser(TournamentsRepository tournamentsRepository) {
+    public LlbSuParser(TournamentsRepository tournamentsRepository, DocumentDownloader documentDownloader) {
         this.tournamentsRepository = tournamentsRepository;
+        this.documentDownloader = documentDownloader;
     }
 
     @Override
     public ParseTournamentsResult parseNewTournaments() throws IOException {
         parseTournamentsResult = new ParseTournamentsResult(WebSite.LLB_SU);
 
-        Document mainPage = Jsoup.connect(mainUrl + nextTournamentsTarget).get();
+        Document mainPage = documentDownloader.download(mainUrl + nextTournamentsTarget);
 
         Elements containers = mainPage.select("div.comp-teaser-container");
         for (int i = containers.size() - 1; i >= 0; i--) {
@@ -103,7 +105,7 @@ public class LlbSuParser implements TournamentParser {
     }
 
     private Tournament parseTournament(String url) throws IOException, TournamentAlreadyParsedException {
-        Document tournamentPage = Jsoup.connect(url).get();
+        Document tournamentPage = documentDownloader.download(url);
 
         String name = tournamentPage.selectFirst("h1.title").text();
         log.info("parsed name: {}", name);
@@ -118,7 +120,7 @@ public class LlbSuParser implements TournamentParser {
         Element clubRef = fields.selectFirst("div.field.field-type-nodereference.field-field-clubreference");
         Element clubLink = clubRef.selectFirst("h2.title").selectFirst("a");
 
-        Document clubPage = Jsoup.connect(mainUrl + clubLink.attributes().get("href")).get();
+        Document clubPage = documentDownloader.download(mainUrl + clubLink.attributes().get("href"));
         String address = getAddress(clubPage);
         String clubName = clubLink.text();
         log.info("parsed address: {}", address);

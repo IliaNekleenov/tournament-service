@@ -4,7 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import neilyich.servers.tournamentservice.exceptions.TournamentAlreadyParsedException;
 import neilyich.servers.tournamentservice.model.*;
 import neilyich.servers.tournamentservice.repositories.TournamentsRepository;
-import org.jsoup.Jsoup;
+import neilyich.servers.tournamentservice.services.DocumentDownloader;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -27,9 +27,12 @@ public class TournamentServiceParser implements TournamentParser {
 
     private final TournamentsRepository tournamentsRepository;
 
+    private final DocumentDownloader documentDownloader;
+
     @Autowired
-    public TournamentServiceParser(TournamentsRepository tournamentsRepository) {
+    public TournamentServiceParser(TournamentsRepository tournamentsRepository, DocumentDownloader documentDownloader) {
         this.tournamentsRepository = tournamentsRepository;
+        this.documentDownloader = documentDownloader;
     }
 
     private ParseTournamentsResult parseTournamentsResult;
@@ -38,7 +41,7 @@ public class TournamentServiceParser implements TournamentParser {
     public ParseTournamentsResult parseNewTournaments() throws IOException {
         parseTournamentsResult = new ParseTournamentsResult(WebSite.TOURNAMENT_SERVICE);
 
-        Document mainPage = Jsoup.connect(mainUrl).get();
+        Document mainPage = documentDownloader.download(mainUrl);
         Element regEvents = mainPage.selectFirst("section#reg-events.eventgroup.cf");
         Element addEvents = mainPage.selectFirst("section#add-events.eventgroup.cf");
 
@@ -66,7 +69,7 @@ public class TournamentServiceParser implements TournamentParser {
                     parseTournamentsResult.getNewParsedTournaments().add(tournament);
                 }
                 catch (TournamentAlreadyParsedException e) {
-                    log.info(e.getMessage());
+                    log.info("already parsed tournament: ", e);
                     parseTournamentsResult.incTotalAlreadyParsed();
                 }
                 catch (Throwable e) {
@@ -134,7 +137,7 @@ public class TournamentServiceParser implements TournamentParser {
             throw new TournamentAlreadyParsedException("already parsed tournament: " + href);
         }
 
-        Document tournamentInitialPage = Jsoup.connect(href).get();
+        Document tournamentInitialPage = documentDownloader.download(href);
         Element loadInfo = tournamentInitialPage.selectFirst("iframe#datacell");
         String src = loadInfo.attributes().get("src");
         join = "/";
@@ -142,7 +145,7 @@ public class TournamentServiceParser implements TournamentParser {
             join = "";
         }
         log.info("parsed content src: {}", src);
-        Document tournamentPage = Jsoup.connect(mainUrl + join + src).get();
+        Document tournamentPage = documentDownloader.download(mainUrl + join + src);
 
 
         Element tabParticipants = tournamentPage.selectFirst("section#tab-participants");
