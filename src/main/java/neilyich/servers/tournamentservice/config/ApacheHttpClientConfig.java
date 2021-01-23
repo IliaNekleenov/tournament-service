@@ -1,5 +1,6 @@
 package neilyich.servers.tournamentservice.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.apache.http.conn.socket.PlainConnectionSocketFactory;
@@ -20,6 +21,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 
 @Profile("apache")
+@Slf4j
 @Configuration
 public class ApacheHttpClientConfig {
 
@@ -34,6 +36,7 @@ public class ApacheHttpClientConfig {
     @Bean
     @Profile("apache")
     CloseableHttpClient httpClient(SSLContext sslContext) {
+        log.info("using apache client");
         return HttpClientBuilder.create()
                 .setSSLContext(sslContext)
                 .setConnectionManager(

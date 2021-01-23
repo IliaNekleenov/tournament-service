@@ -1,7 +1,6 @@
 package neilyich.servers.tournamentservice.services;
 
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
@@ -13,7 +12,6 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 
 @Profile("apache")
-@Slf4j
 @Service
 @AllArgsConstructor
 public class ApacheDocumentDownloader implements DocumentDownloader {
