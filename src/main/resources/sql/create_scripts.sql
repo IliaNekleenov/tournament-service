@@ -1,10 +1,29 @@
+create table clubs
+(
+    id        uuid not null
+        constraint clubs_pk
+            primary key,
+    name      varchar(100),
+    city      varchar(50),
+    place     varchar(255),
+    url       varchar(100)
+        constraint clubs_url_key
+            unique,
+    image_url varchar(100)
+);
+
+create index clubs_url_idx
+    on clubs (url);
+
 create table tournaments
 (
-    id               serial       not null
+    id               uuid         not null
         constraint tournaments_pk
             primary key,
     name             varchar(100) not null,
-    club_name        varchar(100),
+    club_id          uuid
+        constraint club_fk
+            references clubs,
     address          varchar(255),
     url              varchar(100),
     description      varchar(255),
@@ -33,11 +52,11 @@ create table events
 (
     event_name    varchar(100) not null,
     date          timestamp    not null,
-    tournament_id integer
+    tournament_id uuid
         constraint events_tournaments_id_fk
             references tournaments
             on update restrict,
-    id            serial       not null
+    id            uuid         not null
         constraint events_pk
             primary key
 );

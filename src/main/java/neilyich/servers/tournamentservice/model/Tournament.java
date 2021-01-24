@@ -10,6 +10,7 @@ import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -19,18 +20,18 @@ import java.util.List;
 @Table(name = "tournaments")
 public class Tournament implements Serializable {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private UUID id;
 
     @Embedded
     private TournamentType type;
 
     @Column(name = "name")
     private String name;
-    @Column(name = "club_name")
-    private String clubName;
-    @Column(name = "address")
-    private String address;
+
+    @ManyToOne
+    @JoinColumn(name = "club_id", referencedColumnName = "id")
+    private Club club;
+
     @Column(name = "url")
     private String href;
     @Column(name = "description")

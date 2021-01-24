@@ -3,6 +3,7 @@ package neilyich.servers.tournamentservice.parsers;
 import lombok.extern.slf4j.Slf4j;
 import neilyich.servers.tournamentservice.exceptions.TournamentAlreadyParsedException;
 import neilyich.servers.tournamentservice.model.*;
+import neilyich.servers.tournamentservice.repositories.ClubsRepository;
 import neilyich.servers.tournamentservice.repositories.TournamentsRepository;
 import neilyich.servers.tournamentservice.services.DocumentDownloader;
 import org.jsoup.nodes.Document;
@@ -15,10 +16,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -26,12 +24,13 @@ public class TournamentServiceParser implements TournamentParser {
     private static final String mainUrl = "https://tournamentservice.net";
 
     private final TournamentsRepository tournamentsRepository;
-
+    private final ClubsRepository clubsRepository;
     private final DocumentDownloader documentDownloader;
 
     @Autowired
-    public TournamentServiceParser(TournamentsRepository tournamentsRepository, DocumentDownloader documentDownloader) {
+    public TournamentServiceParser(TournamentsRepository tournamentsRepository, ClubsRepository clubsRepository, DocumentDownloader documentDownloader) {
         this.tournamentsRepository = tournamentsRepository;
+        this.clubsRepository = clubsRepository;
         this.documentDownloader = documentDownloader;
     }
 
@@ -65,6 +64,7 @@ public class TournamentServiceParser implements TournamentParser {
                     tournament.setWebSite(WebSite.TOURNAMENT_SERVICE);
                     tournament.setParsedDate(LocalDateTime.now());
                     //tournament.setRegistrationStarted(false);
+                    tournament.setId(UUID.randomUUID());
                     tournamentsRepository.save(tournament);
                     parseTournamentsResult.getNewParsedTournaments().add(tournament);
                 }
@@ -82,13 +82,10 @@ public class TournamentServiceParser implements TournamentParser {
 
     private Tournament parseTournament(Element tournamentInfo) throws IOException, TournamentAlreadyParsedException {
         Tournament tournament = new Tournament();
-        Element img = tournamentInfo.selectFirst("img");
-        String address = img.attributes().get("alt");
-        log.info("parsed country: {}", address);
-        tournament.setAddress(address);
 
         LocalDate startDate = LocalDate.parse(tournamentInfo.selectFirst("i").ownText(), DateTimeFormatter.ofPattern("dd.MM.yy"));
         EventDate startEvent = EventDate.builder()
+                .id(UUID.randomUUID())
                 .date(localDateToLocalDateTime(startDate))
                 .eventType(EventType.START_TOURNAMENT).build();
         log.info("parsed startEvent: {}", startEvent);
@@ -158,6 +155,7 @@ public class TournamentServiceParser implements TournamentParser {
                 try {
                     LocalDateTime endRegDate = LocalDateTime.parse(endRegInfo, DateTimeFormatter.ofPattern("HH:mm dd.MM.yyyy"));
                     endRegEvent = EventDate.builder()
+                            .id(UUID.randomUUID())
                             .date(endRegDate)
                             .eventType(EventType.END_REG).build();
                 }
@@ -195,7 +193,8 @@ public class TournamentServiceParser implements TournamentParser {
     private void fillTournamentWithInfoMap(Map<String, String> infoMap, Tournament tournament) {
         log.info("infoMap final: {}", infoMap.toString());
         if(infoMap.containsKey("место проведения")) {
-            tournament.setAddress(tournament.getAddress() + ", " + infoMap.get("место проведения"));
+            tournament.getClub().setPlace(tournament.getClub().getPlace() + ", " + infoMap.get("место проведения"));
+            tournament.setClub(clubsRepository.save(tournament.getClub()));
         }
 
         BilliardType type = null;
@@ -243,6 +242,7 @@ public class TournamentServiceParser implements TournamentParser {
             try {
                 LocalDate date = LocalDate.parse(endStr, DateTimeFormatter.ofPattern("dd.MM.yy"));
                 tournament.getDates().add(EventDate.builder()
+                        .id(UUID.randomUUID())
                         .date(localDateToLocalDateTime(date))
                         .eventType(EventType.END_TOURNAMENT).build());
             }
@@ -256,6 +256,7 @@ public class TournamentServiceParser implements TournamentParser {
             try {
                 LocalDate date = LocalDate.parse(endStr, DateTimeFormatter.ofPattern("dd.MM.yyyy"));
                 tournament.getDates().add(EventDate.builder()
+                        .id(UUID.randomUUID())
                         .date(localDateToLocalDateTime(date))
                         .eventType(EventType.END_TOURNAMENT).build());
             }

@@ -1,5 +1,7 @@
 package neilyich.servers.tournamentservice.model.projections;
 
+import java.util.UUID;
+
 public interface TournamentId {
-    Integer getTournamentId();
+    UUID getTournamentId();
 }

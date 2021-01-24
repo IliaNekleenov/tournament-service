@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import neilyich.servers.tournamentservice.exceptions.ParseException;
 import neilyich.servers.tournamentservice.exceptions.TournamentAlreadyParsedException;
 import neilyich.servers.tournamentservice.model.*;
+import neilyich.servers.tournamentservice.repositories.ClubsRepository;
 import neilyich.servers.tournamentservice.repositories.TournamentsRepository;
 import neilyich.servers.tournamentservice.services.DocumentDownloader;
 import org.jsoup.nodes.Document;
@@ -19,6 +20,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -27,13 +29,15 @@ public class LlbSuParser implements TournamentParser {
     private static final String nextTournamentsTarget = "/tournaments/next";
 
     private final TournamentsRepository tournamentsRepository;
+    private final ClubsRepository clubsRepository;
     private final DocumentDownloader documentDownloader;
 
     private ParseTournamentsResult parseTournamentsResult;
 
     @Autowired
-    public LlbSuParser(TournamentsRepository tournamentsRepository, DocumentDownloader documentDownloader) {
+    public LlbSuParser(TournamentsRepository tournamentsRepository, ClubsRepository clubsRepository, DocumentDownloader documentDownloader) {
         this.tournamentsRepository = tournamentsRepository;
+        this.clubsRepository = clubsRepository;
         this.documentDownloader = documentDownloader;
     }
 
@@ -83,11 +87,12 @@ public class LlbSuParser implements TournamentParser {
                         String str = dateDiv.ownText();
                         LocalDateTime dateTime = LocalDateTime.parse(str, DateTimeFormatter.ofPattern("dd.MM.yy HH.mm"));
                         tournament.getDates().add(0, EventDate.builder()
+                                .id(UUID.randomUUID())
                                 .date(dateTime)
                                 .eventType(EventType.START_TOURNAMENT).build());
                     }
                 }
-
+                tournament.setId(UUID.randomUUID());
                 tournamentsRepository.save(tournament);
                 parseTournamentsResult.getNewParsedTournaments().add(tournament);
             }
@@ -104,7 +109,7 @@ public class LlbSuParser implements TournamentParser {
         return parseTournamentsResult;
     }
 
-    private Tournament parseTournament(String url) throws IOException, TournamentAlreadyParsedException {
+    private Tournament parseTournament(String url) throws IOException, TournamentAlreadyParsedException, ParseException {
         Document tournamentPage = documentDownloader.download(url);
 
         String name = tournamentPage.selectFirst("h1.title").text();
@@ -120,11 +125,20 @@ public class LlbSuParser implements TournamentParser {
         Element clubRef = fields.selectFirst("div.field.field-type-nodereference.field-field-clubreference");
         Element clubLink = clubRef.selectFirst("h2.title").selectFirst("a");
 
-        Document clubPage = documentDownloader.download(mainUrl + clubLink.attributes().get("href"));
-        String address = getAddress(clubPage);
-        String clubName = clubLink.text();
-        log.info("parsed address: {}", address);
-        log.info("parsed clubName: {}", clubName);
+        String clubUrl = mainUrl + clubLink.attributes().get("href");
+        Club club = clubsRepository.findByHref(clubUrl);
+        if(club == null) {
+            log.info("found new club: {}", clubUrl);
+            club = parseClub(clubUrl);
+            if(club.getName() == null) {
+                club.setName(clubLink.ownText());
+                log.info("parsed club name from tournament page");
+            }
+            log.info("parsed club: {}", club);
+        }
+        else {
+            log.info("already parsed club: {}", clubUrl);
+        }
 
 
         String billiardTypeStr = fields.selectFirst("div.field.field-type-text.field-field-comptype")
@@ -207,8 +221,7 @@ public class LlbSuParser implements TournamentParser {
 
         return Tournament.builder()
                 .name(name)
-                .clubName(clubName)
-                .address(address)
+                .club(club)
                 .type(TournamentType.builder()
                         .type(type)
                         .discipline(discipline)
@@ -247,6 +260,7 @@ public class LlbSuParser implements TournamentParser {
             String name = names.get(i).text().trim().replace(":", "");
             try {
                 eventDates.add(EventDate.builder()
+                        .id(UUID.randomUUID())
                         .eventType(EventType.of(name))
                         .date(dateTime).build());
             }
@@ -256,23 +270,6 @@ public class LlbSuParser implements TournamentParser {
             }
         }
         return eventDates;
-    }
-
-    private String getAddress(Document clubPage) {
-        String address = "";
-        Element cityDiv = clubPage.selectFirst("div.field.field-type-text.field-field-club-city");
-        if(cityDiv != null) {
-            Element div = cityDiv.selectFirst("div.field-item.odd");
-            address += div == null ? "" : div.ownText();
-        }
-
-        Element addressDiv = clubPage.selectFirst("div.field.field-type-text.field-field-address");
-        if(addressDiv != null) {
-            Element div = addressDiv.selectFirst("div.field-item.odd");
-            String join = address.isEmpty() ? "" : ", ";
-            address += div == null ? "" : (join + div.ownText());
-        }
-        return address;
     }
 
     private LocalDateTime parseDate(String str) {
@@ -298,6 +295,54 @@ public class LlbSuParser implements TournamentParser {
         }
         log.warn("Could not parse date: {}", str);
         return null;
+    }
+
+    private Club parseClub(String clubUrl) throws ParseException, IOException {
+        Document clubPage = documentDownloader.download(clubUrl);
+
+        Club club = new Club();
+        club.setId(UUID.randomUUID());
+        club.setHref(clubUrl);
+
+        Element title = clubPage.selectFirst("h1.title");
+        if(title == null) {
+            log.warn("could not find title on club page");
+        }
+        else {
+            club.setName(title.ownText());
+        }
+
+        Element content = clubPage.selectFirst("div#content");
+        if(content == null) {
+            throw new ParseException("content div not found on club page");
+        }
+
+        Element cityDiv = content.selectFirst("div.field.field-type-text.field-field-club-city");
+        if(cityDiv != null) {
+            Element div = cityDiv.selectFirst("div.field-item.odd");
+            if(div != null) {
+                club.setCity(div.ownText());
+            }
+        }
+
+        Element addressDiv = content.selectFirst("div.field.field-type-text.field-field-address");
+        if(addressDiv != null) {
+            Element div = addressDiv.selectFirst("div.field-item.odd");
+            if(div != null) {
+                club.setPlace(div.ownText());
+            }
+        }
+
+        Element imageDiv = content.selectFirst("div.field.field-type-image.field-field-photo");
+        if(imageDiv != null) {
+            Element img = imageDiv.selectFirst("img[src]");
+            if(img != null) {
+                club.setImageHref(img.attr("src"));
+            }
+        }
+
+        club = clubsRepository.save(club);
+        return club;
     }
 
 }

@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -19,13 +20,12 @@ import java.time.LocalDateTime;
 public class EventDate implements Serializable {
     @Id
     @Column(name = "id")
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @JsonIgnore
-    private Integer id;
+    private UUID id;
 
     @JsonIgnore
     @Column(name = "tournament_id")
-    private Integer tournamentId;
+    private UUID tournamentId;
 
     @Column(name = "event_name")
     @Enumerated(EnumType.STRING)

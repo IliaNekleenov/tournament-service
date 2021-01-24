@@ -23,4 +23,6 @@ public class FilterParameters implements Serializable {
     private Boolean withHandicap;
     @JsonProperty("isFree")
     private Boolean free;
+    @JsonProperty("cities")
+    private List<String> cities;
 }
